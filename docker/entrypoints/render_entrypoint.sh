@@ -15,6 +15,11 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
+# filess.io's certificate is not trusted by the container CA store. Preserve
+# TLS encryption while allowing that certificate in this Render deployment.
+export MARIADB_SKIP_TLS_VERIFY=true
+MARIADB_TLS_OPTIONS="--disable-ssl-verify-server-cert"
+
 # Wait for the database to be ready by running a script.
 # The database on Render is external and reached over the network, so it is more
 # likely to be slow to answer than a sibling container, not less. Without this
@@ -29,7 +34,7 @@ if [ ! -d "migrations/versions" ]; then
 fi
 
 # Check if the database is empty
-if [ $(mariadb -u $MARIADB_USER -p$MARIADB_PASSWORD -h $MARIADB_HOSTNAME -P $MARIADB_PORT -D $MARIADB_DATABASE -sse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$MARIADB_DATABASE';") -eq 0 ]; then
+if [ $(mariadb $MARIADB_TLS_OPTIONS -u $MARIADB_USER -p$MARIADB_PASSWORD -h $MARIADB_HOSTNAME -P $MARIADB_PORT -D $MARIADB_DATABASE -sse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$MARIADB_DATABASE';") -eq 0 ]; then
  
     echo "Empty database, migrating..."
 
@@ -46,7 +51,7 @@ else
     echo "Database already initialized, updating migrations..."
 
     # Get the current revision to avoid duplicate stamp
-    CURRENT_REVISION=$(mariadb -u $MARIADB_USER -p$MARIADB_PASSWORD -h $MARIADB_HOSTNAME -P $MARIADB_PORT -D $MARIADB_DATABASE -sse "SELECT version_num FROM alembic_version LIMIT 1;")
+    CURRENT_REVISION=$(mariadb $MARIADB_TLS_OPTIONS -u $MARIADB_USER -p$MARIADB_PASSWORD -h $MARIADB_HOSTNAME -P $MARIADB_PORT -D $MARIADB_DATABASE -sse "SELECT version_num FROM alembic_version LIMIT 1;")
     
     if [ -z "$CURRENT_REVISION" ]; then
         # If no current revision, stamp with the latest revision

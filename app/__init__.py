@@ -1,4 +1,5 @@
 import os
+import ssl
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -31,6 +32,7 @@ def create_app(config_name: str = "development") -> Flask:
 
     ConfigManager(app).load_config(config_name=config_name)
     _apply_database_port(app)
+    _configure_database_tls(app)
     db.init_app(app)
     migrate.init_app(app, db)
 
@@ -41,6 +43,26 @@ def create_app(config_name: str = "development") -> Flask:
     _setup_jinja_globals(app)
 
     return app
+
+
+def _configure_database_tls(app: Flask) -> None:
+    """Use encrypted MariaDB transport without certificate verification."""
+    if os.getenv("MARIADB_SKIP_TLS_VERIFY", "").lower() not in {"1", "true", "yes"}:
+        return
+
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI")
+    if not uri or not make_url(uri).drivername.startswith("mysql+pymysql"):
+        return
+
+    tls_context = ssl.create_default_context()
+    tls_context.check_hostname = False
+    tls_context.verify_mode = ssl.CERT_NONE
+
+    engine_options = dict(app.config.get("SQLALCHEMY_ENGINE_OPTIONS") or {})
+    connect_args = dict(engine_options.get("connect_args") or {})
+    connect_args["ssl"] = tls_context
+    engine_options["connect_args"] = connect_args
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 
 
 def _apply_database_port(app: Flask) -> None:

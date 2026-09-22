@@ -15,7 +15,12 @@
 echo "Starting wait-for-db.sh"
 echo "Hostname: $MARIADB_HOSTNAME, Port: $MARIADB_PORT, User: $MARIADB_USER"
 
-while ! mariadb -h "$MARIADB_HOSTNAME" -P "$MARIADB_PORT" -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -e 'SELECT 1'; do
+MARIADB_TLS_OPTIONS=""
+if [ "${MARIADB_SKIP_TLS_VERIFY:-false}" = "true" ]; then
+  MARIADB_TLS_OPTIONS="--disable-ssl-verify-server-cert"
+fi
+
+while ! mariadb $MARIADB_TLS_OPTIONS -h "$MARIADB_HOSTNAME" -P "$MARIADB_PORT" -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -e 'SELECT 1'; do
   echo "MariaDB is unavailable - sleeping"
   sleep 1
 done
