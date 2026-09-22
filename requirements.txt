@@ -57,7 +57,7 @@ greenlet==3.5.0
 gunicorn==26.0.0
 h11==0.16.0
 h2==4.4.1
-hpack==4.1.0
+hpack==4.2.0
 hyperframe==6.1.0
 idna==3.15
 iniconfig==2.3.0
